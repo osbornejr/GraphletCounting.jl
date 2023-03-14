@@ -1,5 +1,3 @@
 module GraphletCounting
-
-# Write your package code here.
-
-end
+include("CountingFunctions.jl")
+end # module
