@@ -15,3 +15,5 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 Graphs = "1"
+DataFrames = "1"
+ProgressMeter = "1"
