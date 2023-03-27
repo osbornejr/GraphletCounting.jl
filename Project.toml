@@ -15,3 +15,9 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 StatsBase = "0.33"
+DataStructures = "0.18"
+CSV = "0.10"
+RCall = "0.13"
+Graphs = "1"
+DataFrames = "1"
+ProgressMeter = "1"
