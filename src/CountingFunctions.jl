@@ -1167,3 +1167,127 @@ function remote_channel_method(args...;progress::Bool=false)
     end
 return results
 end
+
+
+## Ported from NetworkConstruction (visualisation)
+##function generates a list of all possible graphlets for a given homogeneous graphlet and a set of types
+function generate_heterogeneous_graphlet_list(vecc::AbstractVector{Int},types::Vector{String})
+    ##allows for simplifying entry for each edge only. We convert here to a bit matrix and then feed to main function
+    #first convert int to Bitvector (all nonzero values converted to true)
+    vec = .!(iszero.(vecc))
+    adj = graphlet_edgelist_array_to_adjacency(vecc)
+    return generate_heterogeneous_graphlet_list(adj,types)
+end
+
+function generate_heterogeneous_graphlet_list(vecc::AbstractVector{Bool},types::Vector{String})
+    ##allows for simplifying entry for each edge only. We convert here to a bit matrix and then feed to main function
+    adj = graphlet_edgelist_array_to_adjacency(vecc)
+    return generate_heterogeneous_graphlet_list(adj,types)
+
+end
+
+function generate_heterogeneous_graphlet_list(adj::Matrix{Int64},types::Vector{String})
+    return generate_heterogeneous_graphlet_list(BitMatrix(adj),types)
+end
+
+function generate_heterogeneous_graphlet_list(adj::BitMatrix,types::Vector{String})
+    #method to find all possible permutations of a heterogeneous graphlet given an orbit classification and a set of types.
+
+    #check to make sure types are sorted
+    types = sort(types)
+
+    ##deduce orbits from adj (sum across one dim)
+    orbits = vec(sum(adj,dims=1)) 
+
+    #generate all possible permutations of the type list
+    n = length(types)
+    m = length(orbits)
+
+    comb = []
+    for i in 1:m
+        push!(comb,repeat(vcat([repeat([types[x]],n^(m-i)) for x in 1:n]...),n^(i-1)))
+    end
+    candidates = hcat(comb...)
+
+
+    ##find typed orbits for each candidate
+    typed_orbits = map(y->map(x->countmap(candidates[y,:][adj[x,:]]),1:m),1:size(candidates,1))    
+    ## convert to dict to ignore order and find matching candidates, then finding uniques
+    to_dict = countmap.(typed_orbits)
+    un_to = unique(to_dict)     
+
+    #for each unique typed orbit, match to first occurence in candidates
+    # and add to graphlet list
+    
+
+    graphlets = String[]
+    for o in un_to
+        c = candidates[findfirst(isequal(o),to_dict),:]
+        push!(graphlets,join(c,"_"))
+    end
+#OUTDATED    #now check each candidate to see if it has a unique symmetry under the orbit structure
+#    #initialise empty graphlet list
+#    graphlets = String[]
+#    for c in eachrow(candidates)
+#        flag = 0
+#        for o in unique(orbits)
+#            test = c[orbits.==o]
+#            if !(test == sort(test))
+#                #reject as soon as one orbit is not sorted correctly 
+#                flag = 1
+#
+#            elseif(length(unique(test))>1)
+#                #if orbit is sorted correctly on two
+#            end
+#        end
+#        if (flag == 0)
+#            ##candidate checked out for all orbits, so we add it.
+#            push!(graphlets,join(c,"_"))
+#        else
+#            #reflect by first orbit first, sorting all nodes in that orbit and adjacent ones if necessary   
+#
+#        end
+#
+#    end
+
+    return graphlets
+end
+
+function graphlet_adjacency_to_edgelist_array(adj::Matrix{Int64})
+    return graphlet_adjacency_to_edgelist_array(BitMatrix(adj))
+end
+
+function graphlet_adjacency_to_edgelist_array(adj::AbstractMatrix{Bool})
+    return [adj[i,j] for i in 1:size(adj)[1]-1 for j in i+1:size(adj)[2]]
+end
+
+function graphlet_edgelist_array_to_adjacency(vecc::AbstractVector{Int})
+    return graphlet_edgelist_array_to_adjacency(BitVector(vecc))
+end
+
+function graphlet_edgelist_array_to_adjacency(vecc::AbstractVector{Bool})
+    ## provided vector must be of length equal to triangular number associated with dims of adj/graphlet. Find here and check that length corresponds to a dim that is whole number
+
+    ## inverse triangular number
+    m = length(vecc)
+    n = sqrt(2*m+0.25)-0.5 
+    if !(isinteger(n))
+        throw(ArgumentError("provided vector does not correspond to any graphlet dimension n>1. Vector must be of length T(n-1)")) 
+    else
+        #now we find graphlet dimension
+        n = Int(n)+1
+    end
+
+    #now add zeros appropriately to vector and then reshape
+    adj = []
+
+    for i in 1:(n-1)
+        step = n-i
+        start = m - Int((step*(step+1))/2) 
+        adj = vcat(adj,zeros(Int,i),vecc[start+1:start+step])
+    end
+    adj = vcat(adj,zeros(Int,n))
+    adj = reshape(adj,n,n)
+    adj = BitMatrix(adj + adj')
+    return adj
+end
