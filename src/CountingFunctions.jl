@@ -639,7 +639,7 @@ function count_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Un
         #get per edge graphlet counts
         Chi = local_graphlets(vertex_type_list,edgelist,graphlet_size;run_method=run_method,progress=progress)
         #merge into total graphlet counts
-        graphlets = total_graphlets(Chi)
+        graphlets = total_graphlets(Chi,progress)
     else
         throw(ArgumentError("Graphlet counting only supported for orders 2,3 and 4."))
     end
@@ -812,7 +812,6 @@ function graphlet_relationships(vertex_type_list::Vector{<:AbstractString},edgel
     return nothing 
 end
 
-
 function local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int=3;run_method::String="serial",progress::Bool=false)
     ##INPUTS TO PER EDGE FUNCTION
     #get neighbourhood for each vertex in advance (rather than calling per-edge)
@@ -885,8 +884,10 @@ function local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Un
     return Chi
 end
 
-function total_graphlets(Chi::AbstractArray{T}) where T<: AbstractDict{String,Int}    
-    @info "Calculating total counts for each graphlet..."
+function total_graphlets(Chi::AbstractArray{T},progress::Bool=false) where T<: AbstractDict{String,Int}    
+    if progress==true
+        @info "Calculating total counts for each graphlet..."
+    end
     #total counts for each graphlet
     total_counts = reduce(mergecum,Chi)
 
