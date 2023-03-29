@@ -1190,6 +1190,79 @@ function generate_heterogeneous_graphlet_list(adj::Matrix{Int64},types::Vector{S
     return generate_heterogeneous_graphlet_list(BitMatrix(adj),types)
 end
 
+function sort_graphlet(graphlet::String)
+    ##function to independently sort graphlet into its proper order based on its typeset and structure
+
+end
+
+
+
+function generate_heterogeneous_graphlet_dict(adj::BitMatrix,types::Vector{String})
+    #method to match all possible permutations of a heterogeneous graphlet to the correct orbit classification.
+
+    #check to make sure types are sorted
+    types = sort(types)
+
+    ##deduce orbits from adj (sum across one dim)
+    orbits = vec(sum(adj,dims=1)) 
+
+    #generate all possible permutations of the type list
+    n = length(types)
+    m = length(orbits)
+
+    comb = []
+    for i in 1:m
+        push!(comb,repeat(vcat([repeat([types[x]],n^(m-i)) for x in 1:n]...),n^(i-1)))
+    end
+    candidates = hcat(comb...)
+
+
+    ##find typed orbits for each candidate
+    typed_orbits = map(y->map(x->countmap(candidates[y,:][adj[x,:]]),1:m),1:size(candidates,1))    
+    ## convert to dict to ignore order and find matching candidates, then finding uniques
+    to_dict = countmap.(typed_orbits)
+    un_to = unique(to_dict)     
+
+    #for each unique typed orbit, match to each occurence in candidates
+
+    pairs = Dict{String,String}()
+    for o in un_to
+        ##correct orbit is first match
+        c = join(candidates[findfirst(isequal(o),to_dict),:],"_")
+        ## find all that match and map to c
+        for a in eachrow(candidates[findall(isequal(o),to_dict),:])
+            pairs[join(a,"_")] = c
+        end
+        
+    end
+#OUTDATED    #now check each candidate to see if it has a unique symmetry under the orbit structure
+#    #initialise empty graphlet list
+#    graphlets = String[]
+#    for c in eachrow(candidates)
+#        flag = 0
+#        for o in unique(orbits)
+#            test = c[orbits.==o]
+#            if !(test == sort(test))
+#                #reject as soon as one orbit is not sorted correctly 
+#                flag = 1
+#
+#            elseif(length(unique(test))>1)
+#                #if orbit is sorted correctly on two
+#            end
+#        end
+#        if (flag == 0)
+#            ##candidate checked out for all orbits, so we add it.
+#            push!(graphlets,join(c,"_"))
+#        else
+#            #reflect by first orbit first, sorting all nodes in that orbit and adjacent ones if necessary   
+#
+#        end
+#
+#    end
+
+    return pairs
+end
+
 function generate_heterogeneous_graphlet_list(adj::BitMatrix,types::Vector{String})
     #method to find all possible permutations of a heterogeneous graphlet given an orbit classification and a set of types.
 
