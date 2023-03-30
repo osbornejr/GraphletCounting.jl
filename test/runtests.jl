@@ -1,7 +1,55 @@
 using GraphletCounting
 using Test
+using LinearAlgebra
 
-@testset "GraphletCounting.jl" begin
+@testset "automated 4-node" begin
+## uses the generate_heterogeneous_graphlet_dict function to find the right ordering of each graphlet permutation, to test comprehensively across all possible typesets if count_graphlets is ordering correctly.
+
+function permute_all(F::AbstractVector,m::Int;replace::Bool=false)
+    ##find all sets of objects F choose m
+    ## F is the set of objects, m is how many we choose for each permutation
+    #if replace is false, m!>|F|
+    if((replace == false) & (m>length(F)))
+        throw(ArgumentError("When replace=false, m!>|F| (i.e. cannot choose more elements than provided)"))
+    end
+    n = length(F)
+    comb = []
+    for i in 1:m
+        push!(comb,repeat(vcat([repeat([F[x]],n^(m-i)) for x in 1:n]...),n^(i  -1)))
+    end
+    candidates = hcat(comb...)
+    if replace==false
+        candidates = candidates[length.(unique.(eachrow(candidates))).==m,:]   
+    end
+    return candidates
+end;   
+function adj_is_connected(adj)
+	#using the Fieldler value to determine if a graph is connected
+	deg = diagm(vec(sum(adj,dims=1)))
+	Lap = deg - adj
+	test = eigvals(Lap)[2]
+	return test>0
+end
+#get all possible 4 node adj_matrices
+candidates = permute_all([0,1],6,replace = true)
+candidate_adj = GraphletCounting.graphlet_edgelist_array_to_adjacency.(eachrow(candidates))
+connected = candidates[adj_is_connected.(candidate_adj)]
+
+
+for adj in eachrow(connected)
+    for types in [["a"],["a","b"],["a","b","c"],["a","b","c","d"]]
+        for (k,v) in GraphletCounting.generate_heterogeneous_graphlet_dict(adj,types)
+            vlist = split(k,"_")
+            elist = 
+            @test count_graphlets(vlist,)
+            #TODO find way to get edgelist from (vectorised) adj here
+            #TODO implement non-recursive version of count_graphlets
+            #TODO add converting methods to generate_heterogeneous_graphlet_dict
+        end
+    end
+end
+
+@testset "recursive 4-node" begin
 #### A minimal test for each graphlet. Initially just with two types (colours).
 
 ## 4-path tests{{{
