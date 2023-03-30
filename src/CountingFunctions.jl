@@ -1277,7 +1277,7 @@ end
 function generate_heterogeneous_graphlet_list(adj::BitMatrix,types::Vector{String})
     #method to find all possible permutations of a heterogeneous graphlet given an orbit classification and a set of types.
 
-    ## check that adj is in canonical form
+    ### check that adj is in canonical form... Needed here?
     adj = rotate_graphlet_adjacency(adj)
     
     #check to make sure types are sorted
