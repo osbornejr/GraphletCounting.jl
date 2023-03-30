@@ -414,7 +414,7 @@ end
 
 end
 
-function per_edge_counts(edge::Int,vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int,neighbourdict::Dict{Int,Vector{Int}})
+function per_edge_counts(edge::Int,vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int,neighbourdict::Dict{Int,Vector{Int}};recursive::Bool=true)
     count_dict = DefaultDict{String,Int}(0)
     h=edge  
 #   # get nodes i and j for this edge
@@ -442,12 +442,16 @@ function per_edge_counts(edge::Int,vertex_type_list::Vector{<:AbstractString},ed
         if(k!=i)
             if (rel[k]==1)
                 ##triangle
-                count_dict[graphlet_string(vertex_type_list[i],vertex_type_list[j],vertex_type_list[k],"3-tri",delim)]+=1
+                if graphlet_size == 3 || recursive == true
+                    count_dict[graphlet_string(vertex_type_list[i],vertex_type_list[j],vertex_type_list[k],"3-tri",delim)]+=1
+                end
                 append!(Tri,k)
                 rel[k] = 3
             else
                 #j-path
-                count_dict[graphlet_string(vertex_type_list[i],vertex_type_list[j],vertex_type_list[k],"3-path",delim)]+=1
+                if graphlet_size == 3 || recursive == true
+                    count_dict[graphlet_string(vertex_type_list[i],vertex_type_list[j],vertex_type_list[k],"3-path",delim)]+=1
+                end
                 append!(jPath,k)
                 rel[k] = 2
             end
@@ -457,7 +461,9 @@ function per_edge_counts(edge::Int,vertex_type_list::Vector{<:AbstractString},ed
     for k in gamma_i
         if (rel[k]==1)
             #ipaths
-            count_dict[graphlet_string(vertex_type_list[j],vertex_type_list[i],vertex_type_list[k],"3-path",delim)]+=1
+            if graphlet_size == 3 || recursive == true
+                count_dict[graphlet_string(vertex_type_list[j],vertex_type_list[i],vertex_type_list[k],"3-path",delim)]+=1
+            end
             append!(iPath,k)
         end
     end 
@@ -610,8 +616,9 @@ function t2(d1,d2)
     d1
 end
 
-function count_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int=3;run_method::String="serial",progress::Bool=false)
-    if (graphlet_size == 2)
+function count_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int=3;run_method::String="serial",progress::Bool=false,recursive::Bool=true)
+    #parent function for counting graphlets.
+    if (graphlet_size == 2) 
         ## get typed degree distribution for nodes 
         degree_dist = typed_degree_distribution(vertex_type_list,edgelist)
         
@@ -637,7 +644,7 @@ function count_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Un
 
     elseif (graphlet_size in [3,4]) 
         #get per edge graphlet counts
-        Chi = local_graphlets(vertex_type_list,edgelist,graphlet_size;run_method=run_method,progress=progress)
+        Chi = local_graphlets(vertex_type_list,edgelist,graphlet_size;run_method=run_method,progress=progress,recursive=recursive)
         #merge into total graphlet counts
         graphlets = total_graphlets(Chi,progress)
     else
@@ -812,7 +819,7 @@ function graphlet_relationships(vertex_type_list::Vector{<:AbstractString},edgel
     return nothing 
 end
 
-function local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int=3;run_method::String="serial",progress::Bool=false)
+function local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int=3;run_method::String="serial",progress::Bool=false,recursive::Bool=true)
     ##INPUTS TO PER EDGE FUNCTION
     #get neighbourhood for each vertex in advance (rather than calling per-edge)
     neighbourdict=Neighbours(edgelist)
@@ -827,13 +834,13 @@ function local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Un
         throw(ArgumentError("threads method is currently not working."))
         ##NOT WORKING AT PRESENT
         Threads.@threads for h in 1 :size(edgelist,1)
-            edge = per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict)
+            edge = per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict,recursive=recursive)
             Chi[h] = edge[1]
         end
     elseif(run_method == "remote-channel")
         
         ##run tasks through input and ooutput remote-channels (r is output remote channel)
-        r = remote_channel_method(vertex_type_list,edgelist,graphlet_size,neighbourdict;progress = progress)
+        r = remote_channel_method(vertex_type_list,edgelist,graphlet_size,neighbourdict;progress = progress,recursive=recursive)
         ## there should be length(edgelist) results on channel r. we harvest them into each array as required:
         if(progress)
             @info "Taking results from output channel..."
@@ -853,20 +860,20 @@ function local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Un
 
             @info "Distributing edges to workers..."
             ##alternative option using pmap (dynamically manages worker loads, so that all CPUS are used for entire job. Needs some mechanism for reduction at end though
-            Chi = @showprogress pmap(x->per_edge_counts(x,vertex_type_list,edgelist,graphlet_size,neighbourdict),1:size(edgelist,1),batch_size =1000)
+            Chi = @showprogress pmap(x->per_edge_counts(x,vertex_type_list,edgelist,graphlet_size,neighbourdict,recursive=recursive),1:size(edgelist,1),batch_size =1000)
         else
-            Chi = pmap(x->per_edge_counts(x,vertex_type_list,edgelist,graphlet_size,neighbourdict),1:size(edgelist,1),batch_size =1000)
+            Chi = pmap(x->per_edge_counts(x,vertex_type_list,edgelist,graphlet_size,neighbourdict,recursive=recursive),1:size(edgelist,1),batch_size =1000)
         end
     elseif(run_method == "distributed-old")
         if(progress==true)
             @info "Distributing edges to workers..."
 
             res = @showprogress @distributed (t2) for h in 1:size(edgelist,1)
-                [(h,per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict))]        
+                [(h,per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict,recursive=recursive))]        
             end
         else
             res = @sync @distributed (t2) for h in 1:size(edgelist,1)
-                [(h,per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict))]        
+                [(h,per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict,recursive=recursive))]        
             end
         end
         for r in res
@@ -875,7 +882,7 @@ function local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Un
 
     elseif (run_method == "serial")
         for h in 1 :size(edgelist,1)
-            edge = per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict)
+            edge = per_edge_counts(h,vertex_type_list,edgelist,graphlet_size,neighbourdict,recursive=recursive)
             Chi[h] = edge
         end
     else
@@ -1197,6 +1204,8 @@ end
 
 
 
+
+
 function generate_heterogeneous_graphlet_dict(adj::BitMatrix,types::Vector{String})
     #method to match all possible permutations of a heterogeneous graphlet to the correct orbit classification.
 
@@ -1364,3 +1373,4 @@ function graphlet_edgelist_array_to_adjacency(vecc::AbstractVector{Bool})
     adj = BitMatrix(adj + adj')
     return adj
 end
+
