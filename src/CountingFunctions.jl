@@ -1,4 +1,4 @@
-using DataStructures,Distributed,ProgressMeter,StatsBase
+using DataStructures,Distributed,ProgressMeter,StatsBase,LinearAlgebra
 
 #module GraphletCounting
 #export Neighbours, mergecum, add3graphlets
@@ -1226,15 +1226,20 @@ function rotate_graphlet_adjacency(adj::AbstractMatrix)
     return canon_dict[graphlet_eigvals(adj)]
 end
 
+#TODO add converting methods to generate_heterogeneous_graphlet_dict
 function generate_heterogeneous_graphlet_dict(adj::BitMatrix,types::Vector{String})
     #method to match all possible permutations of a heterogeneous graphlet to the correct orbit classification.
+    
+    ## check that adj is in canonical form
+    cadj = rotate_graphlet_adjacency(adj)
 
     #check to make sure types are sorted
     types = sort(types)
 
     ##deduce orbits from adj (sum across one dim)
     orbits = vec(sum(adj,dims=1)) 
-
+    corbits = vec(sum(cadj,dims=1)) 
+    
     #generate all possible permutations of the type list
     n = length(types)
     m = length(orbits)
@@ -1248,8 +1253,10 @@ function generate_heterogeneous_graphlet_dict(adj::BitMatrix,types::Vector{Strin
 
     ##find typed orbits for each candidate
     typed_orbits = map(y->map(x->countmap(candidates[y,:][adj[x,:]]),1:m),1:size(candidates,1))    
+    ctyped_orbits = map(y->map(x->countmap(candidates[y,:][cadj[x,:]]),1:m),1:size(candidates,1))    
     ## convert to dict to ignore order and find matching candidates, then finding uniques
     to_dict = countmap.(typed_orbits)
+    cto_dict = countmap.(ctyped_orbits)
     un_to = unique(to_dict)     
 
     #for each unique typed orbit, match to each occurence in candidates
@@ -1257,44 +1264,22 @@ function generate_heterogeneous_graphlet_dict(adj::BitMatrix,types::Vector{Strin
     pairs = Dict{String,String}()
     for o in un_to
         ##correct orbit is first match
-        c = join(candidates[findfirst(isequal(o),to_dict),:],"_")
+        c = join(candidates[findfirst(isequal(o),cto_dict),:],"_")
         ## find all that match and map to c
         for a in eachrow(candidates[findall(isequal(o),to_dict),:])
             pairs[join(a,"_")] = c
         end
         
     end
-#OUTDATED    #now check each candidate to see if it has a unique symmetry under the orbit structure
-#    #initialise empty graphlet list
-#    graphlets = String[]
-#    for c in eachrow(candidates)
-#        flag = 0
-#        for o in unique(orbits)
-#            test = c[orbits.==o]
-#            if !(test == sort(test))
-#                #reject as soon as one orbit is not sorted correctly 
-#                flag = 1
-#
-#            elseif(length(unique(test))>1)
-#                #if orbit is sorted correctly on two
-#            end
-#        end
-#        if (flag == 0)
-#            ##candidate checked out for all orbits, so we add it.
-#            push!(graphlets,join(c,"_"))
-#        else
-#            #reflect by first orbit first, sorting all nodes in that orbit and adjacent ones if necessary   
-#
-#        end
-#
-#    end
-
     return pairs
 end
 
 function generate_heterogeneous_graphlet_list(adj::BitMatrix,types::Vector{String})
     #method to find all possible permutations of a heterogeneous graphlet given an orbit classification and a set of types.
 
+    ## check that adj is in canonical form
+    adj = rotate_graphlet_adjacency(adj)
+    
     #check to make sure types are sorted
     types = sort(types)
 
@@ -1355,13 +1340,13 @@ function generate_heterogeneous_graphlet_list(adj::BitMatrix,types::Vector{Strin
     return graphlets
 end
 
+function graphlet_adjacency_to_edgelist_array(adj::AbstractMatrix{Bool})
+    return [adj[i,j] for i in 1:size(adj)[1]-1 for j in i+1:size(adj)[2]]
+end
 function graphlet_adjacency_to_edgelist_array(adj::Matrix{Int64})
     return graphlet_adjacency_to_edgelist_array(BitMatrix(adj))
 end
 
-function graphlet_adjacency_to_edgelist_array(adj::AbstractMatrix{Bool})
-    return [adj[i,j] for i in 1:size(adj)[1]-1 for j in i+1:size(adj)[2]]
-end
 
 function graphlet_edgelist_array_to_adjacency(vecc::AbstractVector{Int})
     return graphlet_edgelist_array_to_adjacency(BitVector(vecc))
