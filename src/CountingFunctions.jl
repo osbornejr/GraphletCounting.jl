@@ -1202,9 +1202,29 @@ function sort_graphlet(graphlet::String)
 
 end
 
+function graphlet_eigvals(adj::AbstractMatrix)
+    ##round eigvals to reasonable level and remove neg zeros
+    radj = round.(eigvals(adj),digits=5).+0.0  
+    return radj
+end
+function graphlet_eigvals(vecc::AbstractVector)
+    return graphlet_eigvals(graphlet_edgelist_array_to_adjacency(vecc))
+end
+    
 
-
-
+function rotate_graphlet_adjacency(adj::AbstractMatrix)
+    ##needed for generate set functions, as any given adj matrix needs to be rotated/flipped into its canonical position.
+    ##match eigen values to canonical form
+    canon_dict = Dict(
+                     graphlet_eigvals([1,0,0,1,0,1])=>graphlet_edgelist_array_to_adjacency([1,0,0,1,0,1]),  
+                     graphlet_eigvals([0,1,0,1,0,1])=>graphlet_edgelist_array_to_adjacency([0,1,0,1,0,1]),  
+                     graphlet_eigvals([1,1,0,1,0,1])=>graphlet_edgelist_array_to_adjacency([1,1,0,1,0,1]),  
+                     graphlet_eigvals([1,0,1,1,0,1])=>graphlet_edgelist_array_to_adjacency([1,0,1,1,0,1]),  
+                     graphlet_eigvals([1,1,0,1,1,1])=>graphlet_edgelist_array_to_adjacency([1,1,0,1,1,1]),  
+                     graphlet_eigvals([1,1,1,1,1,1])=>graphlet_edgelist_array_to_adjacency([1,1,1,1,1,1])  
+                    )
+    return canon_dict[graphlet_eigvals(adj)]
+end
 
 function generate_heterogeneous_graphlet_dict(adj::BitMatrix,types::Vector{String})
     #method to match all possible permutations of a heterogeneous graphlet to the correct orbit classification.
