@@ -3,49 +3,78 @@ using Test
 using LinearAlgebra
 
 @testset "automated 4-node" begin
-## uses the generate_heterogeneous_graphlet_dict function to find the right ordering of each graphlet permutation, to test comprehensively across all possible typesets if count_graphlets is ordering correctly.
-
-function permute_all(F::AbstractVector,m::Int;replace::Bool=false)
-    ##find all sets of objects F choose m
-    ## F is the set of objects, m is how many we choose for each permutation
-    #if replace is false, m!>|F|
-    if((replace == false) & (m>length(F)))
-        throw(ArgumentError("When replace=false, m!>|F| (i.e. cannot choose more elements than provided)"))
-    end
-    n = length(F)
-    comb = []
-    for i in 1:m
-        push!(comb,repeat(vcat([repeat([F[x]],n^(m-i)) for x in 1:n]...),n^(i  -1)))
-    end
-    candidates = hcat(comb...)
-    if replace==false
-        candidates = candidates[length.(unique.(eachrow(candidates))).==m,:]   
-    end
-    return candidates
-end;   
-function adj_is_connected(adj)
-	#using the Fieldler value to determine if a graph is connected
-	deg = diagm(vec(sum(adj,dims=1)))
-	Lap = deg - adj
-	test = eigvals(Lap)[2]
-	return test>0
-end
-#get all possible 4 node adj_matrices
-candidates = permute_all([0,1],6,replace = true)
-candidate_adj = GraphletCounting.graphlet_edgelist_array_to_adjacency.(eachrow(candidates))
-connected = candidates[adj_is_connected.(candidate_adj)]
-
-
-for adj in eachrow(connected)
-    for types in [["a"],["a","b"],["a","b","c"],["a","b","c","d"]]
-        for (k,v) in GraphletCounting.generate_heterogeneous_graphlet_dict(adj,types)
-            vlist = split(k,"_")
-            elist = 
-            @test count_graphlets(vlist,)
-            #TODO find way to get edgelist from (vectorised) adj here
-            #TODO implement non-recursive version of count_graphlets
-            #TODO add converting methods to generate_heterogeneous_graphlet_dict
+    ## uses the generate_heterogeneous_graphlet_dict function to find the right ordering of each graphlet permutation, to test comprehensively across all possible typesets if count_graphlets is ordering correctly.
+    
+    ##functions necessary for test here (for now; do they go into GraphletCounting proper?)
+    function permute_all(F::AbstractVector,m::Int;replace::Bool=false)
+        ##find all sets of objects F choose m
+        ## F is the set of objects, m is how many we choose for each permutation
+        #if replace is false, m!>|F|
+        if((replace == false) & (m>length(F)))
+            throw(ArgumentError("When replace=false, m!>|F| (i.e. cannot choose more elements than provided)"))
         end
+        n = length(F)
+        comb = []
+        for i in 1:m
+            push!(comb,repeat(vcat([repeat([F[x]],n^(m-i)) for x in 1:n]...),n^(i  -1)))
+        end
+        candidates = hcat(comb...)
+        if replace==false
+            candidates = candidates[length.(unique.(eachrow(candidates))).==m,:]   
+        end
+        return candidates
+    end;   
+
+    function adj_is_connected(adj)
+        #using the Fieldler value to determine if a graph is connected
+        deg = diagm(vec(sum(adj,dims=1)))
+        Lap = deg - adj
+        test = eigvals(Lap)[2]
+        return test>0
+    end
+
+    function edgelist_from_adj(adjacency_matrix::AbstractArray)
+        edgelist=Array{Pair}(undef,sum(UpperTriangular(adjacency_matrix)))
+        count=0
+        for (i,row) in enumerate(eachrow(UpperTriangular(adjacency_matrix)))
+            for j in 1:size(row,1)
+                if (row[j]==1)
+                    count=count+1
+                    edgelist[count]=Pair(i,j)
+                end
+            end
+        end
+        return edgelist
+    end
+
+    #get all possible connected adj_matrices (in vector form)
+    candidates = permute_all([0,1],6,replace = true)
+    candidate_adj = GraphletCounting.graphlet_edgelist_array_to_adjacency.(eachrow(candidates))
+    connected = candidate_adj[adj_is_connected.(candidate_adj),:]
+    
+    #further restrict  to just the 4-node case
+    connected_4 = connected[.!(in.(0,sum.(connected,dims=1)))]
+    #set types to be maximal to order size
+    types = ["a","b","c","d"]
+    
+    #provide a map for eigs of each adj back to appropriate graphlet label
+    label_dict = Dict(
+                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,0,0,1,0,1])),digits=5).+0.0=>"4-path",  
+                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([0,1,0,1,0,1])),digits=5).+0.0=>"4-star",  
+                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,1,0,1,0,1])),digits=5).+0.0=>"4-tail",  
+                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,0,1,1,0,1])),digits=5).+0.0=>"4-cycle",  
+                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,1,0,1,1,1])),digits=5).+0.0=>"4-chord",  
+                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,1,1,1,1,1])),digits=5).+0.0=>"4-clique"  
+                    )
+
+    for adj in connected_4
+            for (k,v) in GraphletCounting.generate_heterogeneous_graphlet_dict(adj,types)
+                ##note that vlist and edgelist are from original (unchanged) adj matrix, but v from above has been shifted to canonical form 
+                vlist = split(k,"_")
+                elist = edgelist_from_adj(adj)
+                exp = v*"_"*label_dict[round.(eigvals(adj),digits=5).+0.0]
+                @test count_graphlets(vlist,elist,4,recursive = false) == Dict{String,Int}(exp=>1)
+            end
     end
 end
 
