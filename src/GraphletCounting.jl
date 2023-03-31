@@ -1,4 +1,4 @@
 module GraphletCounting
-export count_graphlets
+export count_graphlets,generate_heterogeneous_graphlet_list,generate_heterogeneous_graphlet_dict
 include("CountingFunctions.jl")
 end # module
