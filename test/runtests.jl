@@ -1,6 +1,5 @@
 using GraphletCounting
 using Test
-using LinearAlgebra
 
 @testset "automated 4-node" begin
     ## uses the generate_heterogeneous_graphlet_dict function to find the right ordering of each graphlet permutation, to test comprehensively across all possible typesets if count_graphlets is ordering correctly.
