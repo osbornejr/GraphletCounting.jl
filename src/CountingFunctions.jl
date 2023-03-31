@@ -1379,3 +1379,44 @@ function graphlet_edgelist_array_to_adjacency(vecc::AbstractVector{Bool})
     return adj
 end
 
+function permute_all(F::AbstractVector,m::Int;replace::Bool=false)
+    ##find all sets of objects F choose m
+    ## F is the set of objects, m is how many we choose for each permutation
+    #if replace is false, m!>|F|
+    if((replace == false) & (m>length(F)))
+        throw(ArgumentError("When replace=false, m!>|F| (i.e. cannot choose more elements than provided)"))
+    end
+    n = length(F)
+    comb = []
+    for i in 1:m
+        push!(comb,repeat(vcat([repeat([F[x]],n^(m-i)) for x in 1:n]...),n^(i  -1)))
+    end
+    candidates = hcat(comb...)
+    if replace==false
+        candidates = candidates[length.(unique.(eachrow(candidates))).==m,:]   
+    end
+    return candidates
+end;   
+
+function adj_is_connected(adj)
+    #using the Fieldler value to determine if a graph is connected
+    deg = diagm(vec(sum(adj,dims=1)))
+    Lap = deg - adj
+    test = eigvals(Lap)[2]
+    return test>0
+end
+
+function edgelist_from_adj(adjacency_matrix::AbstractArray)
+    edgelist=Array{Pair}(undef,sum(UpperTriangular(adjacency_matrix)))
+    count=0
+    for (i,row) in enumerate(eachrow(UpperTriangular(adjacency_matrix)))
+        for j in 1:size(row,1)
+            if (row[j]==1)
+                count=count+1
+                edgelist[count]=Pair(i,j)
+            end
+        end
+    end
+    return edgelist
+end
+
