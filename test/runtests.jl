@@ -15,22 +15,12 @@ using Test
     #set types to be maximal to order size
     types = ["a","b","c","d"]
     
-    #provide a map for eigs of each adj back to appropriate graphlet label
-    label_dict = Dict(
-                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,0,0,1,0,1])),digits=5).+0.0=>"4-path",  
-                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([0,1,0,1,0,1])),digits=5).+0.0=>"4-star",  
-                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,1,0,1,0,1])),digits=5).+0.0=>"4-tail",  
-                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,0,1,1,0,1])),digits=5).+0.0=>"4-cycle",  
-                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,1,0,1,1,1])),digits=5).+0.0=>"4-chord",  
-                      round.(eigvals(GraphletCounting.graphlet_edgelist_array_to_adjacency([1,1,1,1,1,1])),digits=5).+0.0=>"4-clique"  
-                    )
-
     for adj in connected_4
             for (k,v) in GraphletCounting.generate_heterogeneous_graphlet_dict(adj,types)
                 ##note that vlist and edgelist are from original (unchanged) adj matrix, but v from above has been shifted to canonical form 
                 vlist = split(k,"_")
                 elist = GraphletCounting.edgelist_from_adj(adj)
-                exp = v*"_"*label_dict[round.(eigvals(adj),digits=5).+0.0]
+                exp = v*"_"*GraphletCounting.get_graphlet_name(adj)
                 @test count_graphlets(vlist,elist,4,recursive = false) == Dict{String,Int}(exp=>1)
             end
     end

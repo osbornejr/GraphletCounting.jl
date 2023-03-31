@@ -1212,6 +1212,18 @@ function graphlet_eigvals(vecc::AbstractVector)
 end
     
 
+function get_graphlet_name(adj::AbstractMatrix)
+    #provide a map for eigs of each adj back to appropriate graphlet label
+    label_dict = Dict(
+                      graphlet_eigvals([1,0,0,1,0,1])=>"4-path",  
+                      graphlet_eigvals([0,1,0,1,0,1])=>"4-star",  
+                      graphlet_eigvals([1,1,0,1,0,1])=>"4-tail",  
+                      graphlet_eigvals([1,0,1,1,0,1])=>"4-cycle",  
+                      graphlet_eigvals([1,1,0,1,1,1])=>"4-chord",  
+                      graphlet_eigvals([1,1,1,1,1,1])=>"4-clique"  
+                    )
+    return label_dict[graphlet_eigvals(adj)]
+end
 function rotate_graphlet_adjacency(adj::AbstractMatrix)
     ##needed for generate set functions, as any given adj matrix needs to be rotated/flipped into its canonical position.
     ##match eigen values to canonical form
