@@ -435,6 +435,8 @@ function per_edge_counts(edge::Int,vertex_type_list::Vector{<:AbstractString},ed
     #prelim cycle through i neighbours
     for k in gamma_i
         if (k!=j)
+            
+
             rel[k] = 1
         end
     end
