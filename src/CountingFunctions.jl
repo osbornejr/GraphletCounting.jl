@@ -618,6 +618,21 @@ function t2(d1,d2)
     d1
 end
 
+"""
+    count_local_graphlets
+Give the graphlet count for each node, as derived from the per-edge counts that are found before combined into global graphlet counts.
+"""
+function count_local_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int=3;run_method::String="serial",progress::Bool=false,recursive::Bool=true)
+
+    if (graphlet_size in [3,4]) 
+        #get per edge graphlet counts
+        Chi = local_graphlets(vertex_type_list,edgelist,graphlet_size;run_method=run_method,progress=progress,recursive=recursive)
+    else
+        throw(ArgumentError("local graphlet counting only supported for orders 3 and 4."))
+    end
+
+end
+
 function count_graphlets(vertex_type_list::Vector{<:AbstractString},edgelist::Union{Array{Pair{Int,Int},1},Array{Pair,1}},graphlet_size::Int=3;run_method::String="serial",progress::Bool=false,recursive::Bool=true)
     #parent function for counting graphlets.
     if (graphlet_size == 2) 
@@ -1209,6 +1224,7 @@ function graphlet_eigvals(adj::AbstractMatrix)
     radj = round.(eigvals(adj),digits=5).+0.0  
     return radj
 end
+
 function graphlet_eigvals(vecc::AbstractVector)
     return graphlet_eigvals(graphlet_edgelist_array_to_adjacency(vecc))
 end
