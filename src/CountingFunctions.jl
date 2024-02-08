@@ -1015,7 +1015,7 @@ function total_graphlets(Chi::AbstractArray{T},progress::Bool=false) where T<: A
                     end
                 else
                     ## all types must be unique (and thus there must be at least 4 types present) so we sort so htat primary type is first
-                    
+
                     ## find which first type that matches max occs 
                     primary_type = sort(collect(keys(filter(x->last(x) == moccs,occs))))[1]
                     ##find which position primary is in
