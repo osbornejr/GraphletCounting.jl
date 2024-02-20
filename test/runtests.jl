@@ -20,8 +20,8 @@ using Test
                 ##note that vlist and edgelist are from original (unchanged) adj matrix, but v from above has been shifted to canonical form 
                 vlist = split(k,"_")
                 elist = GraphletCounting.edgelist_from_adj(adj)
-                exp = v*"_"*GraphletCounting.get_graphlet_name(adj)
-                @test count_graphlets(vlist,elist,4,recursive = false) == Dict{String,Int}(exp=>1)
+                expected = v*"_"*GraphletCounting.get_graphlet_name(adj)
+                @test count_graphlets(vlist,elist,4,recursive = false) == Dict{String,Int}(expected=>1)
             end
     end
 end 
